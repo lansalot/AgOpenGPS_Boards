@@ -1,5 +1,6 @@
 void calcSteeringPID(void)
 {
+
 	//Proportional only
 	pValue = steerSettings.Kp * steerAngleError;
 	pwmDrive = (int16_t)pValue;
@@ -58,6 +59,7 @@ void motorDrive(void)
 	// Steering Motor
 	// Dir + PWM Signal
 	if (keyaDetected) {
+
 		if (pwmDrive == 0) {
 			// send disable
 			disableKeyaSteer();

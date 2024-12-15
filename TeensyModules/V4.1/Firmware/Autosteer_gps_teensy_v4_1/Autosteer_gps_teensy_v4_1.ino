@@ -32,6 +32,10 @@
 //uint32_t KeyaBeacon = millis();
 //char beaconIdentifier[] = {0x80,0x99};
 
+#define isJoystickControlled 1
+unsigned int joystickValue = 0;
+unsigned int joystickDeadband = 30;
+unsigned int joystickCenterAt3V = 510;
 
 /************************* User Settings *************************/
 // Serial Ports
@@ -42,7 +46,7 @@ HardwareSerial* SerialGPS2 = &Serial2;  //Dual heading receiver
 HardwareSerial* SerialGPSTmp = NULL;
 //HardwareSerial* SerialAOG = &Serial;
 
-const int32_t baudAOG = 115200; 
+const int32_t baudAOG = 115200;
 const int32_t baudGPS = 460800;
 const int32_t baudRTK = 9600;     // most are using Xbee radios with default of 115200
 
@@ -60,7 +64,7 @@ uint32_t baudrates[]
   921600
 };
 
-const uint32_t nrBaudrates = sizeof(baudrates)/sizeof(baudrates[0]);
+const uint32_t nrBaudrates = sizeof(baudrates) / sizeof(baudrates[0]);
 
 
 #define ImuWire Wire        //SCL=19:A5 SDA=18:A4
@@ -69,7 +73,7 @@ const uint32_t nrBaudrates = sizeof(baudrates)/sizeof(baudrates[0]);
 //Swap BNO08x roll & pitch?
 //const bool swapRollPitch = false;
 
-const bool invertRoll= true;  //Used for IMU with dual antenna
+const bool invertRoll = true;  //Used for IMU with dual antenna
 #define baseLineLimit 5       //Max CM differance in baseline
 
 #define REPORT_INTERVAL 20    //BNO report time, we want to keep reading it quick & offen. Its not timmed to anything just give constant data.
@@ -101,14 +105,14 @@ uint32_t gpsReadyTime = 0;        //Used for GGA timeout
 #include <NativeEthernetUdp.h>
 
 struct ConfigIP {
-    uint8_t ipOne = 192;
-    uint8_t ipTwo = 168;
-    uint8_t ipThree = 5;
+	uint8_t ipOne = 192;
+	uint8_t ipTwo = 168;
+	uint8_t ipThree = 5;
 };  ConfigIP networkAddress;   //3 bytes
 
 // IP & MAC address of this module of this module
-byte Eth_myip[4] = { 0, 0, 0, 0}; //This is now set via AgIO
-byte mac[] = {0x00, 0x00, 0x56, 0x00, 0x00, 0x78};
+byte Eth_myip[4] = { 0, 0, 0, 0 }; //This is now set via AgIO
+byte mac[] = { 0x00, 0x00, 0x56, 0x00, 0x00, 0x78 };
 
 unsigned int portMy = 5120;             // port of this module
 unsigned int AOGNtripPort = 2233;       // port NTRIP data from AOG comes in
@@ -178,7 +182,7 @@ double relPosD = 0;
 double heading = 0;
 
 
-byte ackPacket[72] = {0xB5, 0x62, 0x01, 0x3C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+byte ackPacket[72] = { 0xB5, 0x62, 0x01, 0x3C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 constexpr int serial_buffer_size = 512;
 uint8_t GPSrxbuffer[serial_buffer_size];    //Extra serial rx buffer
@@ -214,7 +218,7 @@ double imuCorrected;
 #define PIBy2 1.57079632679489661923
 
 // Buffer to read chars from Serial, to check if "!AOG" is found
-uint8_t aogSerialCmd[4] = { '!', 'A', 'O', 'G'};
+uint8_t aogSerialCmd[4] = { '!', 'A', 'O', 'G' };
 uint8_t aogSerialCmdBuffer[6];
 uint8_t aogSerialCmdCounter = 0;
 
@@ -230,10 +234,10 @@ struct ubxPacket
 	uint16_t len; //Length of the payload. Does not include cls, id, or checksum bytes
 	uint16_t counter; //Keeps track of number of overall bytes received. Some responses are larger than 255 bytes.
 	uint16_t startingSpot; //The counter value needed to go past before we begin recording into payload array
-	uint8_t *payload; // We will allocate RAM for the payload if/when needed.
+	uint8_t* payload; // We will allocate RAM for the payload if/when needed.
 	uint8_t checksumA; //Given to us from module. Checked against the rolling calculated A/B checksums.
 	uint8_t checksumB;
-    
+
 	////sfe_ublox_packet_validity_e valid;			 //Goes from NOT_DEFINED to VALID or NOT_VALID when checksum is checked
 	////sfe_ublox_packet_validity_e classAndIDmatch; // Goes from NOT_DEFINED to VALID or NOT_VALID when the Class and ID match the requestedClass and requestedID
 };
@@ -241,211 +245,212 @@ struct ubxPacket
 // Setup procedure ------------------------
 void setup()
 {
-    delay(500);                         //Small delay so serial can monitor start up
-    //set_arm_clock(150000000);           //Set CPU speed to 150mhz
-    //Serial.print("CPU speed set to: ");
-    //Serial.println(F_CPU_ACTUAL);
+	delay(500);                         //Small delay so serial can monitor start up
+	//set_arm_clock(150000000);           //Set CPU speed to 150mhz
+	//Serial.print("CPU speed set to: ");
+	//Serial.println(F_CPU_ACTUAL);
 
-  pinMode(GGAReceivedLED, OUTPUT);
-  pinMode(Power_on_LED, OUTPUT);
-  pinMode(Ethernet_Active_LED, OUTPUT);
-  pinMode(GPSRED_LED, OUTPUT);
-  pinMode(GPSGREEN_LED, OUTPUT);
-  pinMode(AUTOSTEER_STANDBY_LED, OUTPUT);
-  pinMode(AUTOSTEER_ACTIVE_LED, OUTPUT);
+	pinMode(GGAReceivedLED, OUTPUT);
+	pinMode(Power_on_LED, OUTPUT);
+	pinMode(Ethernet_Active_LED, OUTPUT);
+	pinMode(GPSRED_LED, OUTPUT);
+	pinMode(GPSGREEN_LED, OUTPUT);
+	pinMode(AUTOSTEER_STANDBY_LED, OUTPUT);
+	pinMode(AUTOSTEER_ACTIVE_LED, OUTPUT);
 
-  // the dash means wildcard
-  parser.setErrorHandler(errorHandler);
-  parser.addHandler("G-GGA", GGA_Handler);
-  parser.addHandler("G-VTG", VTG_Handler);
+	pinMode(A13, INPUT);
+	// the dash means wildcard
+	parser.setErrorHandler(errorHandler);
+	parser.addHandler("G-GGA", GGA_Handler);
+	parser.addHandler("G-VTG", VTG_Handler);
 
-  delay(10);
-  Serial.begin(baudAOG);
-  delay(10);
-  Serial.println("Start setup");
+	delay(10);
+	Serial.begin(baudAOG);
+	delay(10);
+	Serial.println("Start setup");
 
-  SerialGPS->begin(baudGPS);
-  SerialGPS->addMemoryForRead(GPSrxbuffer, serial_buffer_size);
-  SerialGPS->addMemoryForWrite(GPStxbuffer, serial_buffer_size);
+	SerialGPS->begin(baudGPS);
+	SerialGPS->addMemoryForRead(GPSrxbuffer, serial_buffer_size);
+	SerialGPS->addMemoryForWrite(GPStxbuffer, serial_buffer_size);
 
-  delay(10);
-  SerialRTK.begin(baudRTK);
-  SerialRTK.addMemoryForRead(RTKrxbuffer, serial_buffer_size);
+	delay(10);
+	SerialRTK.begin(baudRTK);
+	SerialRTK.addMemoryForRead(RTKrxbuffer, serial_buffer_size);
 
-  delay(10);
-  SerialGPS2->begin(baudGPS);
-  SerialGPS2->addMemoryForRead(GPS2rxbuffer, serial_buffer_size);
-  SerialGPS2->addMemoryForWrite(GPS2txbuffer, serial_buffer_size);
+	delay(10);
+	SerialGPS2->begin(baudGPS);
+	SerialGPS2->addMemoryForRead(GPS2rxbuffer, serial_buffer_size);
+	SerialGPS2->addMemoryForWrite(GPS2txbuffer, serial_buffer_size);
 
-  Serial.println("SerialAOG, SerialRTK, SerialGPS and SerialGPS2 initialized");
+	Serial.println("SerialAOG, SerialRTK, SerialGPS and SerialGPS2 initialized");
 
-  Serial.println("\r\nStarting AutoSteer...");
-  autosteerSetup();
-  
-  Serial.println("\r\nStarting Ethernet...");
-  EthernetStart();
+	Serial.println("\r\nStarting AutoSteer...");
+	autosteerSetup();
 
-  Serial.println("\r\nStarting IMU...");
-  //test if CMPS working
-  uint8_t error;
+	Serial.println("\r\nStarting Ethernet...");
+	EthernetStart();
 
-  ImuWire.begin();
-  
-  //Serial.println("Checking for CMPS14");
-  ImuWire.beginTransmission(CMPS14_ADDRESS);
-  error = ImuWire.endTransmission();
+	Serial.println("\r\nStarting IMU...");
+	//test if CMPS working
+	uint8_t error;
 
-  if (error == 0)
-  {
-    //Serial.println("Error = 0");
-    Serial.print("CMPS14 ADDRESs: 0x");
-    Serial.println(CMPS14_ADDRESS, HEX);
-    Serial.println("CMPS14 Ok.");
-    useCMPS = true;
-  }
-  else
-  {
-    //Serial.println("Error = 4");
-    Serial.println("CMPS not Connected or Found");
-  }
+	ImuWire.begin();
 
-  if (!useCMPS)
-  {
-      for (int16_t i = 0; i < nrBNO08xAdresses; i++)
-      {
-          bno08xAddress = bno08xAddresses[i];
+	//Serial.println("Checking for CMPS14");
+	ImuWire.beginTransmission(CMPS14_ADDRESS);
+	error = ImuWire.endTransmission();
 
-          //Serial.print("\r\nChecking for BNO08X on ");
-          //Serial.println(bno08xAddress, HEX);
-          ImuWire.beginTransmission(bno08xAddress);
-          error = ImuWire.endTransmission();
+	if (error == 0)
+	{
+		//Serial.println("Error = 0");
+		Serial.print("CMPS14 ADDRESs: 0x");
+		Serial.println(CMPS14_ADDRESS, HEX);
+		Serial.println("CMPS14 Ok.");
+		useCMPS = true;
+	}
+	else
+	{
+		//Serial.println("Error = 4");
+		Serial.println("CMPS not Connected or Found");
+	}
 
-          if (error == 0)
-          {
-              //Serial.println("Error = 0");
-              Serial.print("0x");
-              Serial.print(bno08xAddress, HEX);
-              Serial.println(" BNO08X Ok.");
+	if (!useCMPS)
+	{
+		for (int16_t i = 0; i < nrBNO08xAdresses; i++)
+		{
+			bno08xAddress = bno08xAddresses[i];
 
-              // Initialize BNO080 lib
-              if (bno08x.begin(bno08xAddress, ImuWire)) //??? Passing NULL to non pointer argument, remove maybe ???
-              {
-                  //Increase I2C data rate to 400kHz
-                  ImuWire.setClock(400000); 
+			//Serial.print("\r\nChecking for BNO08X on ");
+			//Serial.println(bno08xAddress, HEX);
+			ImuWire.beginTransmission(bno08xAddress);
+			error = ImuWire.endTransmission();
 
-                  delay(300);
+			if (error == 0)
+			{
+				//Serial.println("Error = 0");
+				Serial.print("0x");
+				Serial.print(bno08xAddress, HEX);
+				Serial.println(" BNO08X Ok.");
 
-                  // Use gameRotationVector and set REPORT_INTERVAL
-                  bno08x.enableGameRotationVector(REPORT_INTERVAL);
-                  useBNO08x = true;
-              }
-              else
-              {
-                  Serial.println("BNO080 not detected at given I2C address.");
-              }
-          }
-          else
-          {
-              //Serial.println("Error = 4");
-              Serial.print("0x");
-              Serial.print(bno08xAddress, HEX);
-              Serial.println(" BNO08X not Connected or Found");
-          }
-          if (useBNO08x) break;
-      }
-  }
+				// Initialize BNO080 lib
+				if (bno08x.begin(bno08xAddress, ImuWire)) //??? Passing NULL to non pointer argument, remove maybe ???
+				{
+					//Increase I2C data rate to 400kHz
+					ImuWire.setClock(400000);
 
-  delay(100);
-  Serial.print("\r\nuseCMPS = ");
-  Serial.println(useCMPS);
-  Serial.print("useBNO08x = ");
-  Serial.println(useBNO08x);
+					delay(300);
 
-  CAN_Setup();
+					// Use gameRotationVector and set REPORT_INTERVAL
+					bno08x.enableGameRotationVector(REPORT_INTERVAL);
+					useBNO08x = true;
+				}
+				else
+				{
+					Serial.println("BNO080 not detected at given I2C address.");
+				}
+			}
+			else
+			{
+				//Serial.println("Error = 4");
+				Serial.print("0x");
+				Serial.print(bno08xAddress, HEX);
+				Serial.println(" BNO08X not Connected or Found");
+			}
+			if (useBNO08x) break;
+		}
+	}
 
-  Serial.println("\r\nEnd setup, waiting for GPS...\r\n");
+	delay(100);
+	Serial.print("\r\nuseCMPS = ");
+	Serial.println(useCMPS);
+	Serial.print("useBNO08x = ");
+	Serial.println(useBNO08x);
+
+	CAN_Setup();
+
+	Serial.println("\r\nEnd setup, waiting for GPS...\r\n");
 }
 
 void loop()
 {
-    KeyaBus_Receive();
-    if (GGA_Available == false && !passThroughGPS && !passThroughGPS2)
-    {
-        if (systick_millis_count - PortSwapTime >= 10000)
-        {
-            Serial.println("Swapping GPS ports...\r\n");
-            SerialGPSTmp = SerialGPS;
-            SerialGPS = SerialGPS2;
-            SerialGPS2 = SerialGPSTmp;
-            PortSwapTime = systick_millis_count;
-        }
-    }
+	KeyaBus_Receive();
+	if (GGA_Available == false && !passThroughGPS && !passThroughGPS2)
+	{
+		if (systick_millis_count - PortSwapTime >= 10000)
+		{
+			Serial.println("Swapping GPS ports...\r\n");
+			SerialGPSTmp = SerialGPS;
+			SerialGPS = SerialGPS2;
+			SerialGPS2 = SerialGPSTmp;
+			PortSwapTime = systick_millis_count;
+		}
+	}
 
-    // Pass NTRIP etc to GPS
-    if (SerialAOG.available())
-    {
-        uint8_t incoming_char = SerialAOG.read();
+	// Pass NTRIP etc to GPS
+	if (SerialAOG.available())
+	{
+		uint8_t incoming_char = SerialAOG.read();
 
-        // Check incoming char against the aogSerialCmd array
-        // The configuration utility will send !AOGR1, !AOGR2 or !AOGED (close/end)
-        if (aogSerialCmdCounter < 4 && aogSerialCmd[aogSerialCmdCounter] == incoming_char)
-        {
-            aogSerialCmdBuffer[aogSerialCmdCounter] = incoming_char;
-            aogSerialCmdCounter++;
-        }
-        // Whole command prefix is in, handle it
-        else if (aogSerialCmdCounter == 4)
-        {
-            aogSerialCmdBuffer[aogSerialCmdCounter] = incoming_char;
-            aogSerialCmdBuffer[aogSerialCmdCounter + 1] = SerialAOG.read();
+		// Check incoming char against the aogSerialCmd array
+		// The configuration utility will send !AOGR1, !AOGR2 or !AOGED (close/end)
+		if (aogSerialCmdCounter < 4 && aogSerialCmd[aogSerialCmdCounter] == incoming_char)
+		{
+			aogSerialCmdBuffer[aogSerialCmdCounter] = incoming_char;
+			aogSerialCmdCounter++;
+		}
+		// Whole command prefix is in, handle it
+		else if (aogSerialCmdCounter == 4)
+		{
+			aogSerialCmdBuffer[aogSerialCmdCounter] = incoming_char;
+			aogSerialCmdBuffer[aogSerialCmdCounter + 1] = SerialAOG.read();
 
-            if (aogSerialCmdBuffer[aogSerialCmdCounter] == 'R')
-            {
-                HardwareSerial* autoBaudSerial = NULL;
+			if (aogSerialCmdBuffer[aogSerialCmdCounter] == 'R')
+			{
+				HardwareSerial* autoBaudSerial = NULL;
 
-                // Reset SerialGPS and SerialGPS2
-                SerialGPS = &Serial7;
-                SerialGPS2 = &Serial2;
+				// Reset SerialGPS and SerialGPS2
+				SerialGPS = &Serial7;
+				SerialGPS2 = &Serial2;
 
-                if (aogSerialCmdBuffer[aogSerialCmdCounter + 1] == '1')
-                {
-                    passThroughGPS = true;
-                    passThroughGPS2 = false;
-                    autoBaudSerial = SerialGPS;
-                }
-                else if (aogSerialCmdBuffer[aogSerialCmdCounter + 1] == '2')
-                {
-                    passThroughGPS = false;
-                    passThroughGPS2 = true;
-                    autoBaudSerial = SerialGPS2;
-                }
-				
+				if (aogSerialCmdBuffer[aogSerialCmdCounter + 1] == '1')
+				{
+					passThroughGPS = true;
+					passThroughGPS2 = false;
+					autoBaudSerial = SerialGPS;
+				}
+				else if (aogSerialCmdBuffer[aogSerialCmdCounter + 1] == '2')
+				{
+					passThroughGPS = false;
+					passThroughGPS2 = true;
+					autoBaudSerial = SerialGPS2;
+				}
+
 				const uint8_t UBX_SYNCH_1 = 0xB5;
-                const uint8_t UBX_SYNCH_2 = 0x62;
-                const uint8_t UBX_CLASS_ACK = 0x05;
-                const uint8_t UBX_CLASS_CFG = 0x06;
-                const uint8_t UBX_CFG_RATE = 0x08;
+				const uint8_t UBX_SYNCH_2 = 0x62;
+				const uint8_t UBX_CLASS_ACK = 0x05;
+				const uint8_t UBX_CLASS_CFG = 0x06;
+				const uint8_t UBX_CFG_RATE = 0x08;
 
-                ubxPacket packetCfg{};
+				ubxPacket packetCfg{};
 
-                packetCfg.cls = UBX_CLASS_CFG;
-                packetCfg.id = UBX_CFG_RATE;
-                packetCfg.len = 0;
-                packetCfg.startingSpot = 0;
+				packetCfg.cls = UBX_CLASS_CFG;
+				packetCfg.id = UBX_CFG_RATE;
+				packetCfg.len = 0;
+				packetCfg.startingSpot = 0;
 
-                calcChecksum(&packetCfg);
+				calcChecksum(&packetCfg);
 
-                byte mon_rate[] = {0xB5, 0x62, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-                mon_rate[2] = packetCfg.cls; 
-                mon_rate[3] = packetCfg.id; 
-                mon_rate[4] = packetCfg.len & 0xFF; 
-                mon_rate[5] = packetCfg.len >> 8;
-                mon_rate[6] = packetCfg.checksumA; 
-                mon_rate[7] = packetCfg.checksumB; 
+				byte mon_rate[] = { 0xB5, 0x62, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+				mon_rate[2] = packetCfg.cls;
+				mon_rate[3] = packetCfg.id;
+				mon_rate[4] = packetCfg.len & 0xFF;
+				mon_rate[5] = packetCfg.len >> 8;
+				mon_rate[6] = packetCfg.checksumA;
+				mon_rate[7] = packetCfg.checksumB;
 
-                // Check baudrate
-                bool communicationSuccessfull = false;
-				uint32_t baudrate = 0;                
+				// Check baudrate
+				bool communicationSuccessfull = false;
+				uint32_t baudrate = 0;
 
 				for (uint32_t i = 0; i < nrBaudrates; i++)
 				{
@@ -566,183 +571,211 @@ void loop()
 
 				aogSerialCmdCounter = 0;
 			}
-            // END command. maybe think of a different abbreviation
-            else if (aogSerialCmdBuffer[aogSerialCmdCounter] == 'E' && aogSerialCmdBuffer[aogSerialCmdCounter + 1] == 'D')
-            {
-                passThroughGPS = false;
-                passThroughGPS2 = false;
-                aogSerialCmdCounter = 0;
-            }
-        }
-        else
-        {
-            aogSerialCmdCounter = 0;
+			// END command. maybe think of a different abbreviation
+			else if (aogSerialCmdBuffer[aogSerialCmdCounter] == 'E' && aogSerialCmdBuffer[aogSerialCmdCounter + 1] == 'D')
+			{
+				passThroughGPS = false;
+				passThroughGPS2 = false;
+				aogSerialCmdCounter = 0;
+			}
+		}
+		else
+		{
+			aogSerialCmdCounter = 0;
 		}
 
-        if (passThroughGPS)
-        {
-            SerialGPS->write(incoming_char);
-        }
-        else if (passThroughGPS2)
-        {
-            SerialGPS2->write(incoming_char);
-        }
-        else
-        {
-            SerialGPS->write(incoming_char);
-        }
-    }
+		if (passThroughGPS)
+		{
+			SerialGPS->write(incoming_char);
+		}
+		else if (passThroughGPS2)
+		{
+			SerialGPS2->write(incoming_char);
+		}
+		else
+		{
+			SerialGPS->write(incoming_char);
+		}
+	}
 
-    // Read incoming nmea from GPS
-    if (SerialGPS->available())
-    {
-        if (passThroughGPS)
-        {
-            SerialAOG.write(SerialGPS->read());
-        }
-        else
-        {
-            parser << SerialGPS->read();
-        }
-    }
+	// Read incoming nmea from GPS
+	if (SerialGPS->available())
+	{
+		if (passThroughGPS)
+		{
+			SerialAOG.write(SerialGPS->read());
+		}
+		else
+		{
+			parser << SerialGPS->read();
+		}
+	}
 
-    udpNtrip();
+	udpNtrip();
 
-    // Check for RTK Radio
-    if (SerialRTK.available())
-    {
-        SerialGPS->write(SerialRTK.read());
-    }
+	// Check for RTK Radio
+	if (SerialRTK.available())
+	{
+		SerialGPS->write(SerialRTK.read());
+	}
 
-    // If both dual messages are ready, send to AgOpen
-    if (dualReadyGGA == true && dualReadyRelPos == true)
-    {
-        BuildNmea();
-        dualReadyGGA = false;
-        dualReadyRelPos = false;
-    }
+	// If both dual messages are ready, send to AgOpen
+	if (dualReadyGGA == true && dualReadyRelPos == true)
+	{
+		BuildNmea();
+		dualReadyGGA = false;
+		dualReadyRelPos = false;
+	}
 
-    // If anything comes in SerialGPS2 RelPos data
-    if (SerialGPS2->available())
-    {
-        uint8_t incoming_char = SerialGPS2->read();  //Read RELPOSNED from F9P
+	// If anything comes in SerialGPS2 RelPos data
+	if (SerialGPS2->available())
+	{
+		uint8_t incoming_char = SerialGPS2->read();  //Read RELPOSNED from F9P
 
-        if (passThroughGPS2)
-        {
-            SerialAOG.write(incoming_char);
-        }
-        else
-        {
-            // Just increase the byte counter for the first 3 bytes
-            if (relposnedByteCount < 4 && incoming_char == ackPacket[relposnedByteCount])
-            {
-                relposnedByteCount++;
-            }
-            else if (relposnedByteCount > 3)
-            {
-                // Real data, put the received bytes in the buffer
-                ackPacket[relposnedByteCount] = incoming_char;
-                relposnedByteCount++;
-            }
-            else
-            {
-                // Reset the counter, becaues the start sequence was broken
-                relposnedByteCount = 0;
-            }
-        }
-    }
+		if (passThroughGPS2)
+		{
+			SerialAOG.write(incoming_char);
+		}
+		else
+		{
+			// Just increase the byte counter for the first 3 bytes
+			if (relposnedByteCount < 4 && incoming_char == ackPacket[relposnedByteCount])
+			{
+				relposnedByteCount++;
+			}
+			else if (relposnedByteCount > 3)
+			{
+				// Real data, put the received bytes in the buffer
+				ackPacket[relposnedByteCount] = incoming_char;
+				relposnedByteCount++;
+			}
+			else
+			{
+				// Reset the counter, becaues the start sequence was broken
+				relposnedByteCount = 0;
+			}
+		}
+	}
 
-    // Check the message when the buffer is full
-    if (relposnedByteCount > 71)
-    {
-        if (calcChecksum())
-        {
-            //if(deBug) Serial.println("RelPos Message Recived");
-            digitalWrite(GPSRED_LED, LOW);   //Turn red GPS LED OFF (we are now in dual mode so green LED)
-            useDual = true;
-            relPosDecode();
-        }
-        /*  else {
-          if(deBug) Serial.println("ACK Checksum Failure: ");
-          }
-        */
-        relposnedByteCount = 0;
-    }
+	// Check the message when the buffer is full
+	if (relposnedByteCount > 71)
+	{
+		if (calcChecksum())
+		{
+			//if(deBug) Serial.println("RelPos Message Recived");
+			digitalWrite(GPSRED_LED, LOW);   //Turn red GPS LED OFF (we are now in dual mode so green LED)
+			useDual = true;
+			relPosDecode();
+		}
+		/*  else {
+		  if(deBug) Serial.println("ACK Checksum Failure: ");
+		  }
+		*/
+		relposnedByteCount = 0;
+	}
 
-    //GGA timeout, turn off GPS LED's etc
-    if((systick_millis_count - gpsReadyTime) > 10000) //GGA age over 10sec
-    {
-      digitalWrite(GPSRED_LED, LOW);
-      digitalWrite(GPSGREEN_LED, LOW);
-      useDual = false;
-    }
+	//GGA timeout, turn off GPS LED's etc
+	if ((systick_millis_count - gpsReadyTime) > 10000) //GGA age over 10sec
+	{
+		digitalWrite(GPSRED_LED, LOW);
+		digitalWrite(GPSGREEN_LED, LOW);
+		useDual = false;
+	}
 
-    //Read BNO
-    if((systick_millis_count - READ_BNO_TIME) > REPORT_INTERVAL && useBNO08x)
-    {
-      READ_BNO_TIME = systick_millis_count;
-      readBNO();
-    }
-    
-    if (Autosteer_running) autosteerLoop();
-    else ReceiveUdp();
-    
-  if (Ethernet.linkStatus() == LinkOFF) 
-  {
-    digitalWrite(Power_on_LED, 1);
-    digitalWrite(Ethernet_Active_LED, 0);
-  }
-  if (Ethernet.linkStatus() == LinkON) 
-  {
-    digitalWrite(Power_on_LED, 0);
-    digitalWrite(Ethernet_Active_LED, 1);
-  }
-//  if (millis() - KeyaBeacon > 5000) {
-//      // just testing, let's send a beacon every 5 seconds
-//      //char str[] = "Hello world";
-//      Serial.println("Sending beacon");
-//      SendUdpFreeForm("Hello world", Eth_ipDestination, portDestination);
-//      KeyaBeacon = millis();
-//  }
+	//Read BNO
+	if ((systick_millis_count - READ_BNO_TIME) > REPORT_INTERVAL && useBNO08x)
+	{
+		READ_BNO_TIME = systick_millis_count;
+		readBNO();
+	}
+
+	if (Autosteer_running) autosteerLoop();
+	else ReceiveUdp();
+
+	if (Ethernet.linkStatus() == LinkOFF)
+	{
+		digitalWrite(Power_on_LED, 1);
+		digitalWrite(Ethernet_Active_LED, 0);
+	}
+	if (Ethernet.linkStatus() == LinkON)
+	{
+		digitalWrite(Power_on_LED, 0);
+		digitalWrite(Ethernet_Active_LED, 1);
+	}
+	//  if (millis() - KeyaBeacon > 5000) {
+	//      // just testing, let's send a beacon every 5 seconds
+	//      //char str[] = "Hello world";
+	//      Serial.println("Sending beacon");
+	//      SendUdpFreeForm("Hello world", Eth_ipDestination, portDestination);
+	//      KeyaBeacon = millis();
+	//  }
+
+		// This happens immaterial of AOG engagement
+	joystickValue = analogRead(A14);
+	if (isJoystickControlled) {
+		int actualSpeed = map(joystickValue, 140, 580, 0,1000);
+		uint8_t buf[] = { 0x23, 0x00, 0x20, 0x01, 0, 0, 0, 0 };
+		if (joystickValue < joystickCenterAt3V - joystickDeadband) {
+			actualSpeed = joystickCenterAt3V - joystickValue;
+			// steer left
+			buf[4] = highByte(actualSpeed);
+			buf[5] = lowByte(actualSpeed);
+			buf[6] = 0x00;
+			buf[7] = 0x00;
+			Serial.println("LEFT:Joystick Control: " + String(joystickValue) + "   actualSpeed: " + String(actualSpeed));
+		}
+		else
+		if (joystickValue > joystickCenterAt3V + joystickDeadband) {
+			actualSpeed = (joystickValue - joystickCenterAt3V) * -1;
+			// steer right
+			buf[4] = highByte(actualSpeed);
+			buf[5] = lowByte(actualSpeed);
+			buf[6] = 0xff;
+			buf[7] = 0xff;
+			Serial.println("RIGHT: Joystick Control: " + String(joystickValue) + "   actualSpeed: " + String(actualSpeed));
+		}
+		keyaSend(buf);
+		enableKeyaSteer();
+	}
 }//End Loop
 //**************************************************************************
 
 bool calcChecksum()
 {
-  CK_A = 0;
-  CK_B = 0;
+	CK_A = 0;
+	CK_B = 0;
 
-  for (int i = 2; i < 70; i++)
-  {
-    CK_A = CK_A + ackPacket[i];
-    CK_B = CK_B + CK_A;
-  }
+	for (int i = 2; i < 70; i++)
+	{
+		CK_A = CK_A + ackPacket[i];
+		CK_B = CK_B + CK_A;
+	}
 
-  return (CK_A == ackPacket[70] && CK_B == ackPacket[71]);
+	return (CK_A == ackPacket[70] && CK_B == ackPacket[71]);
 }
 
 //Given a message, calc and store the two byte "8-Bit Fletcher" checksum over the entirety of the message
 //This is called before we send a command message
-void calcChecksum(ubxPacket *msg)
+void calcChecksum(ubxPacket* msg)
 {
-  msg->checksumA = 0;
-  msg->checksumB = 0;
+	msg->checksumA = 0;
+	msg->checksumB = 0;
 
-  msg->checksumA += msg->cls;
-  msg->checksumB += msg->checksumA;
+	msg->checksumA += msg->cls;
+	msg->checksumB += msg->checksumA;
 
-  msg->checksumA += msg->id;
-  msg->checksumB += msg->checksumA;
+	msg->checksumA += msg->id;
+	msg->checksumB += msg->checksumA;
 
-  msg->checksumA += (msg->len & 0xFF);
-  msg->checksumB += msg->checksumA;
+	msg->checksumA += (msg->len & 0xFF);
+	msg->checksumB += msg->checksumA;
 
-  msg->checksumA += (msg->len >> 8);
-  msg->checksumB += msg->checksumA;
+	msg->checksumA += (msg->len >> 8);
+	msg->checksumB += msg->checksumA;
 
-  for (uint16_t i = 0; i < msg->len; i++)
-  {
-    msg->checksumA += msg->payload[i];
-    msg->checksumB += msg->checksumA;
-  }
+	for (uint16_t i = 0; i < msg->len; i++)
+	{
+		msg->checksumA += msg->payload[i];
+		msg->checksumB += msg->checksumA;
+	}
 }

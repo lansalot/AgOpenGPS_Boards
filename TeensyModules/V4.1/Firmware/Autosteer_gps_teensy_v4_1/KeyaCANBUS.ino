@@ -2,7 +2,8 @@
 // KeyaCANBUS
 // Trying to get Keya to steer the tractor over CANBUS
 
-#define IsNewModel 1
+//#define IsNewModel 1
+
 
 #define lowByte(w) ((uint8_t)((w) & 0xFF))
 #define highByte(w) ((uint8_t)((w) >> 8))
@@ -77,6 +78,7 @@ void CAN_Setup() {
 
 
 void keyaSend(uint8_t data[8]) {
+	//Serial.println("Sending");
 	memcpy(KeyaBusSendData.buf, data, 8);
 	Keya_Bus.write(KeyaBusSendData);
 }
@@ -87,9 +89,9 @@ void keyaSend(uint8_t data[8]) {
 
 void disableKeyaSteer() {
 #ifdef IsNewModel
-  uint8_t buf[] = { 0x23, 0x0c, 0x20, 0x01, 0, 0, 0, 0 };
+	uint8_t buf[] = { 0x23, 0x0c, 0x20, 0x01, 0, 0, 0, 0 };
 #else
-  uint8_t buf[] = { 0x03, 0x0d, 0x20, 0x11, 0, 0, 0, 0 };
+	uint8_t buf[] = { 0x23, 0x0c, 0x20, 0x01, 0, 0, 0, 0 };
 #endif
 	keyaSend(buf);
 }
@@ -105,7 +107,7 @@ void SteerKeya(int steerSpeed, float fSteerSpeed) {
 #ifdef IsNewModel
 	int actualSpeed = map(fSteerSpeed, -255, 255, -9995, 9998);
 #else
-  int actualSpeed = map(steerSpeed, -255, 255, -995, 998);
+	int actualSpeed = map(steerSpeed, -255, 255, -995, 998);
 #endif
 	if (pwmDrive == 0) {
 		disableKeyaSteer();
@@ -182,11 +184,11 @@ void KeyaBus_Receive() {
 			//KeyaCurrentSensorReading = abs(KeyaBusReceiveData.buf[4]) * 20;
 
 			if (KeyaBusReceiveData.buf[4] == 0xFF) {
-				KeyaCurrentSensorReading =  (0.9 * KeyaCurrentSensorReading  ) + ( 0.1 * (256 - KeyaBusReceiveData.buf[5]) * 20);
-				Serial.println("Current reading: " + String(KeyaCurrentSensorReading));
+				KeyaCurrentSensorReading = (0.9 * KeyaCurrentSensorReading) + (0.1 * (256 - KeyaBusReceiveData.buf[5]) * 20);
+				//Serial.println("Current reading: " + String(KeyaCurrentSensorReading));
 			}
 			else {
-				KeyaCurrentSensorReading = (0.9 * KeyaCurrentSensorReading  ) + ( 0.1 * KeyaBusReceiveData.buf[5] );
+				KeyaCurrentSensorReading = (0.9 * KeyaCurrentSensorReading) + (0.1 * KeyaBusReceiveData.buf[5]);
 			}
 
 			//if (debugKeya) Serial.println("Heartbeat current is " + String(KeyaCurrentSensorReading));
