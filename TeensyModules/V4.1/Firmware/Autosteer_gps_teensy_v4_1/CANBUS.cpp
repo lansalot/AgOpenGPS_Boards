@@ -96,17 +96,18 @@ void CANBUS_Receive() {
 			lastCANCommand = millis();
 			if (debugCANBUS) Serial.println("CANBUS bit state: true");
 			// not 100% these are correct, lemme know !
+			// wasn't correct - thanks to Valentin and BSE for letting me know :D
 			if (currentState == 1)
 			{
 				currentState = 0;
-				steerSwitch = 1;
+				steerSwitch = 0;
 				if (debugCANBUS) Serial.println("Engaging steering");
 			}
 			else
 			{
 				if (debugCANBUS) Serial.println("Disengaging steering");
 				currentState = 1;
-				steerSwitch = 0;
+				steerSwitch = 1;
 			}
 		}
 	}
