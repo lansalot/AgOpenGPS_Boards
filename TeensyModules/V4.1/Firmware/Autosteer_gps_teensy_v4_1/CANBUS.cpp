@@ -20,18 +20,18 @@ uint32_t lastCANCommand; // Need to delay processing CANBUS messages for a bit, 
 // UNCOMMENT ONLY ONE CANINFO LINE BELOW !!!
 
 // CaseNH
+int CANInfo[3] = { 0x18FF1A03 , 2, 0x15 }; // NH, steer button on joystick (most common)
 //int CANInfo[3] = { 0x18FFB306 , 2, 0x10 }; // Case Puma CVX 160 2015, button behind joystick
 //int CANInfo[3] = { 0x18FFB031 , 2, 0x10}; // Case Puma CVX 160 2015, steer button on armrest
 //int CANInfo[3] = { 0x14FF7706 , 0, 0x82}; // Case Puma CVX 165 2022, steer button on armrest (note, this is full byte, not bit)
 //int CANInfo[3] = { 0x14FF7706 , 0, 0xB2}; // Case Puma CVX 165 2022, steer button on armrest (note, this is full byte, not bit)
 //int CANInfo[3] = { 0x14FF7706 , 2, 0xC1}; // Case Puma CVX 165 2022, steer button on armrest (note, this is full byte, not bit)
 //int CANInfo[3] = { 0x14FF7706 , 2, 0xC4}; // Case Puma CVX 165 2022, steer button on armrest (note, this is full byte, not bit)
-int CANInfo[3] = { 0x18FF1A03 , 2, 0x15 }; // NH, steer button on joystick
 
 // Massey Ferguson
 //int CANInfo[3] = { 0x45a , 1, 0x04 }; // MF headland management button
 //int CANInfo[3] = { 0xCFF2621 , 3, 0x04}; // MF S-series steering engage
-// int CANInfo[3] = { 0x210, 1, 0x20}; // MF 7720 Headland management button
+//int CANInfo[3] = { 0x210, 1, 0x20}; // MF 7720 Headland management button
 
 // Codes below here need validated and checked !!!
 
@@ -47,10 +47,17 @@ int CANInfo[3] = { 0x18FF1A03 , 2, 0x15 }; // NH, steer button on joystick
 //int CANInfo[3] = { 0x18EF1C00 , 2, 0xC4}; // Valtra engage (alternative)
 
 // JCB
-//int CANInfo[3] = { 0x18EFAB27 , 2, 0x01}; // code in firmware is unclear for bit states here
+//int CANInfo[3] = { 0x18EFAB27 , 2, 0x01}; // Pre-Icon
+//int CANInfo[3] = { 0x0CEFAB27 , 2, 0x01}; // Icon
 
 // Caterpillar MT
 //int CANInfo[3] = { 0x18EF1CF0 , 0, 0x0F}; //code unsure here, could be && [1] == 0x60 as well
+
+// Deutz
+//int CANInfo[3] = { 0x18FF5806 , 1, 0x01}; // Deutz Engage message
+//int CANInfo[3] = { 0x08FF6206 , 5, 0x01}; // Deutz ComfortTip
+
+
 
 
 // ============================================

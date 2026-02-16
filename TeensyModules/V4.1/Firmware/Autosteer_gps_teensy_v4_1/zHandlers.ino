@@ -25,6 +25,7 @@ char imuHeading[6];
 char imuRoll[6];
 char imuPitch[6];
 char imuYawRate[6];
+elapsedMillis badQOStimer;
 
 // If odd characters showed up.
 void errorHandler()
@@ -77,7 +78,22 @@ void GGA_Handler() //Rec'd GGA
        dualReadyGGA = true;
     }
 
-    if (useBNO08x || useCMPS)
+	if (useTM171)
+	{
+		imuTrigger = true;
+		imuTimer = 0;
+		BuildNmea();
+		if (qos >= 2)
+		{
+
+			if (badQOStimer > 60000) // If ethernet running send the QoS there
+			{
+				badQOStimer = 0;
+			}
+		}
+	}
+
+   else if (useBNO08x || useCMPS)
     {
        imuHandler();          //Get IMU data ready
        BuildNmea();           //Build & send data GPS data to AgIO (Both Dual & Single)
@@ -117,6 +133,8 @@ void readBNO()
                 //Serial.print(dqx, 4);
                 //Serial.print(F(","));
                 //Serial.print(dqy, 4);
+
+
                 //Serial.print(F(","));
                 //Serial.print(dqz, 4);
                 //Serial.print(F(","));
@@ -174,6 +192,31 @@ void readBNO()
 void imuHandler()
 {
     int16_t temp = 0;
+    	if (useTM171)
+	{
+
+		// Fill rest of Panda Sentence - Heading
+		itoa(YawV.fValue * 10, imuHeading, 10);
+
+		if (steerConfig.IsUseY_Axis)
+		{
+			// the pitch x100
+			itoa(PitchV.fValue * 10, imuPitch, 10);
+
+			// the roll x100
+			itoa(RollV.fValue * 10, imuRoll, 10);
+		}
+		else
+		{
+			// the pitch x100
+			itoa(RollV.fValue * 10, imuPitch, 10);
+
+			// the roll x100
+			itoa(PitchV.fValue * 10, imuRoll, 10);
+		}
+		itoa(0, imuYawRate, 10);
+	}
+
     if (!useDual)
     {
         if (useCMPS)
