@@ -183,7 +183,7 @@ void KeyaBus_Receive() {
 
 			if (KeyaBusReceiveData.buf[4] == 0xFF) {
 				KeyaCurrentSensorReading =  (0.9 * KeyaCurrentSensorReading  ) + ( 0.1 * (256 - KeyaBusReceiveData.buf[5]) * 20);
-				Serial.println("Current reading: " + String(KeyaCurrentSensorReading));
+				//Serial.println("Current reading: " + String(KeyaCurrentSensorReading));
 			}
 			else {
 				KeyaCurrentSensorReading = (0.9 * KeyaCurrentSensorReading  ) + ( 0.1 * KeyaBusReceiveData.buf[5] );
