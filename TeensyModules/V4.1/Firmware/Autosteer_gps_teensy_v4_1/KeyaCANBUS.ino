@@ -2,7 +2,8 @@
 // KeyaCANBUS
 // Trying to get Keya to steer the tractor over CANBUS
 
-#define IsNewModel 0
+// Uncomment for the g1 model, you should never need this tho
+// #define IsNewModel
 
 #define lowByte(w) ((uint8_t)((w) & 0xFF))
 #define highByte(w) ((uint8_t)((w) >> 8))
